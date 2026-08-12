@@ -93,13 +93,20 @@ def init_database():
             except Error as e:
                 if e.errno != 1060: pass
         
-        # Seed default admin user if not exists
-        cur.execute("SELECT COUNT(*) FROM users WHERE role = 'admin'")
-        if cur.fetchone()[0] == 0:
-            admin_pwd = generate_password_hash('admin123')
+        # Seed default admin user if not exists, or update it to ensure correct credentials
+        cur.execute("SELECT id FROM users WHERE username = 'admin'")
+        admin_user = cur.fetchone()
+        admin_pwd = generate_password_hash('admin123')
+        if not admin_user:
             cur.execute("""
                 INSERT INTO users (fullname, username, email, password, role)
                 VALUES ('System Administrator', 'admin', 'admin@safetext.ai', %s, 'admin')
+            """, (admin_pwd,))
+        else:
+            cur.execute("""
+                UPDATE users 
+                SET fullname = 'System Administrator', email = 'admin@safetext.ai', password = %s, role = 'admin' 
+                WHERE username = 'admin'
             """, (admin_pwd,))
             
         conn.commit(); cur.close(); conn.close()
