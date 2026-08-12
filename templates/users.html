@@ -1,1 +1,55 @@
-{% extends 'admin_base.html' %}{% block admin_content %}<div class="page-head"><div><span>USER MANAGEMENT</span><h2>Registered Users</h2></div></div><div class="panel"><div class="table-responsive"><table class="table align-middle"><thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Role</th><th>Joined</th></tr></thead><tbody>{% for u in users %}<tr><td>{{u.fullname or '—'}}</td><td>{{u.username}}</td><td>{{u.email}}</td><td><span class="label-pill safe">{{u.role}}</span></td><td>{{u.created_at or '—'}}</td></tr>{% endfor %}</tbody></table></div></div>{% endblock %}
+{% extends 'admin_base.html' %}
+
+{% block admin_content %}
+<div class="page-head">
+    <div>
+        <span>USER MANAGEMENT</span>
+        <h2>Registered Users</h2>
+        <p>List of all users registered in the SafeText AI application.</p>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>User Detail</th>
+                    <th>Username</th>
+                    <th>Email Address</th>
+                    <th>System Role</th>
+                    <th>Date Joined</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <div class="avatar-sm me-2 bg-primary-soft text-primary rounded-circle d-flex align-items-center justify-content-center" style="width:36px;height:36px;font-size:0.95rem;">
+                                <i class="bi bi-person-fill"></i>
+                            </div>
+                            <span class="fw-semibold text-dark">{{ u.fullname or 'No Fullname Set' }}</span>
+                        </div>
+                    </td>
+                    <td><span class="text-secondary">@{{ u.username }}</span></td>
+                    <td>{{ u.email }}</td>
+                    <td>
+                        <span class="label-pill {% if u.role == 'admin' %}harmful{% else %}safe{% endif %}">
+                            {{ u.role | upper }}
+                        </span>
+                    </td>
+                    <td>
+                        <small class="text-muted"><i class="bi bi-calendar-event me-1"></i>{{ u.created_at or '—' }}</small>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center py-4 text-muted">No registered users found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

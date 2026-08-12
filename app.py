@@ -92,9 +92,19 @@ def init_database():
             try: cur.execute(sql)
             except Error as e:
                 if e.errno != 1060: pass
+        
+        # Seed default admin user if not exists
+        cur.execute("SELECT COUNT(*) FROM users WHERE role = 'admin'")
+        if cur.fetchone()[0] == 0:
+            admin_pwd = generate_password_hash('admin123')
+            cur.execute("""
+                INSERT INTO users (fullname, username, email, password, role)
+                VALUES ('System Administrator', 'admin', 'admin@safetext.ai', %s, 'admin')
+            """, (admin_pwd,))
+            
         conn.commit(); cur.close(); conn.close()
     except Exception as e:
-        print('Database migration note:', e)
+        print('Database migration/seed note:', e)
 
 # Initialize database tables on application startup
 init_database()
@@ -272,6 +282,7 @@ def admin():
     cur.execute('SELECT COUNT(*) total FROM messages'); total=cur.fetchone()['total']
     cur.execute("SELECT COUNT(*) harmful FROM messages WHERE prediction<>'normal'"); harmful=cur.fetchone()['harmful']
     cur.execute("SELECT COUNT(*) safe FROM messages WHERE prediction='normal'"); safe=cur.fetchone()['safe']
+    cur.execute("SELECT COUNT(DISTINCT user_id) total_bullies FROM messages WHERE prediction<>'normal'"); total_bullies=cur.fetchone()['total_bullies']
     cur.execute('SELECT prediction, COUNT(*) value FROM messages GROUP BY prediction'); category_rows=cur.fetchall()
     category_stats={row['prediction']:row['value'] for row in category_rows}
     cur.execute("SELECT DATE(created_at) day, COUNT(*) value FROM messages WHERE created_at>=DATE_SUB(CURDATE(),INTERVAL 6 DAY) GROUP BY DATE(created_at) ORDER BY day")
@@ -281,7 +292,7 @@ def admin():
     cur.execute('SELECT m.*,u.username FROM messages m LEFT JOIN users u ON m.user_id=u.id ORDER BY m.id DESC LIMIT 8'); recent_predictions=cur.fetchall()
     cur.execute("SELECT fullname,username,created_at FROM users ORDER BY id DESC LIMIT 5"); recent_users=cur.fetchall()
     cur.close(); conn.close()
-    return render_template('admin.html',total_users=total_users,total=total,harmful=harmful,safe=safe,category_stats=category_stats,daily_labels=labels,daily_values=values,recent_predictions=recent_predictions,recent_users=recent_users)
+    return render_template('admin.html',total_users=total_users,total=total,harmful=harmful,safe=safe,total_bullies=total_bullies,category_stats=category_stats,daily_labels=labels,daily_values=values,recent_predictions=recent_predictions,recent_users=recent_users)
 
 @app.route('/users')
 @admin_required

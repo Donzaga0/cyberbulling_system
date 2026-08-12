@@ -1,1 +1,265 @@
-{% extends 'admin_base.html' %}{% block admin_content %}<div class="page-head"><div><span>ADMINISTRATOR</span><h2>System Dashboard</h2><p>Overview of users, messages, trends, and recent activities.</p></div><div class="date-chip"><i class="bi bi-calendar3"></i> Live Statistics</div></div><div class="row g-3">{% for n,v,i in [('Total Users',total_users,'people'),('Total Messages',total,'chat-square-text'),('Bullying/Harmful',harmful,'exclamation-triangle'),('Safe Messages',safe,'shield-check')] %}<div class="col-md-6 col-xl-3"><div class="stat-card"><i class="bi bi-{{i}}"></i><div><small>{{n}}</small><h2>{{v}}</h2></div></div></div>{% endfor %}</div><div class="row g-4 mt-1"><div class="col-xl-7"><div class="panel"><div class="panel-title"><h4>Daily Predictions</h4><span>Last 7 days</span></div><canvas id="dailyChart" height="120"></canvas></div></div><div class="col-xl-5"><div class="panel"><div class="panel-title"><h4>Category Statistics</h4><span>All time</span></div><canvas id="categoryChart" height="190"></canvas></div></div></div><div class="row g-4 mt-1"><div class="col-xl-8"><div class="panel"><div class="panel-title"><h4>Recent Predictions</h4><a href="/admin/predictions">View all</a></div><div class="table-responsive"><table class="table"><thead><tr><th>User</th><th>Message</th><th>Result</th><th>Confidence</th></tr></thead><tbody>{% for r in recent_predictions %}<tr><td>{{r.username or 'Unknown'}}</td><td>{{r.message_text[:45]}}</td><td><span class="label-pill {{'safe' if r.prediction=='normal' else 'harmful'}}">{{label_info.get(r.prediction,{}).get('name',r.prediction)}}</span></td><td>{{r.confidence_score}}%</td></tr>{% else %}<tr><td colspan="4">No predictions yet.</td></tr>{% endfor %}</tbody></table></div></div></div><div class="col-xl-4"><div class="panel"><div class="panel-title"><h4>Recent Activities</h4></div>{% for u in recent_users %}<div class="activity"><div class="activity-icon"><i class="bi bi-person-plus"></i></div><div><strong>{{u.fullname or u.username}}</strong><small>Registered a user account</small><time>{{u.created_at}}</time></div></div>{% else %}<p>No recent activity.</p>{% endfor %}</div></div></div>{% endblock %}{% block scripts %}<script>new Chart(document.getElementById('dailyChart'),{type:'line',data:{labels:{{daily_labels|tojson}},datasets:[{label:'Predictions',data:{{daily_values|tojson}},fill:true,tension:.35}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});const cats={{category_stats|tojson}};new Chart(document.getElementById('categoryChart'),{type:'doughnut',data:{labels:Object.keys(cats).map(x=>x.replaceAll('_',' ')),datasets:[{data:Object.values(cats)}]},options:{plugins:{legend:{position:'bottom'}}}});</script>{% endblock %}
+{% extends 'admin_base.html' %}
+
+{% block admin_content %}
+<div class="page-head">
+    <div>
+        <span>ADMINISTRATOR</span>
+        <h2>System Dashboard</h2>
+        <p>Overview of users, messages, trends, and recent activities.</p>
+    </div>
+    <div class="date-chip">
+        <i class="bi bi-shield-shaded text-primary"></i> System Status: Active
+    </div>
+</div>
+
+<!-- Stats Dashboard Cards -->
+<div class="row g-4 mb-4">
+    <!-- Total Users -->
+    <div class="col-md-6 col-xl-3">
+        <div class="stat-card premium-card border-bottom-primary">
+            <div class="stat-icon bg-primary-soft text-primary">
+                <i class="bi bi-people-fill"></i>
+            </div>
+            <div class="stat-data">
+                <small>Total Users</small>
+                <h2>{{ total_users }}</h2>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Total Bullies -->
+    <div class="col-md-6 col-xl-3">
+        <div class="stat-card premium-card border-bottom-danger">
+            <div class="stat-icon bg-danger-soft text-danger">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+            </div>
+            <div class="stat-data">
+                <small>Total Bullies</small>
+                <h2>{{ total_bullies }}</h2>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Harmful Messages -->
+    <div class="col-md-6 col-xl-3">
+        <div class="stat-card premium-card border-bottom-warning">
+            <div class="stat-icon bg-warning-soft text-warning">
+                <i class="bi bi-chat-square-text-fill"></i>
+            </div>
+            <div class="stat-data">
+                <small>Harmful Messages</small>
+                <h2>{{ harmful }}</h2>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Safe Messages -->
+    <div class="col-md-6 col-xl-3">
+        <div class="stat-card premium-card border-bottom-success">
+            <div class="stat-icon bg-success-soft text-success">
+                <i class="bi bi-shield-fill-check"></i>
+            </div>
+            <div class="stat-data">
+                <small>Safe Messages</small>
+                <h2>{{ safe }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Panel Row -->
+<div class="row g-4">
+    <!-- Chart 1: Daily Predictions -->
+    <div class="col-xl-7">
+        <div class="panel h-100">
+            <div class="panel-title">
+                <h4>Daily Predictions Trend</h4>
+                <span class="badge bg-secondary-soft text-secondary">Last 7 Days</span>
+            </div>
+            <div style="position: relative; height: 280px; width: 100%;">
+                <canvas id="dailyChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Chart 2: Category Breakdown -->
+    <div class="col-xl-5">
+        <div class="panel h-100">
+            <div class="panel-title">
+                <h4>Distribution by Severity</h4>
+                <span class="badge bg-secondary-soft text-secondary">All Time</span>
+            </div>
+            <div style="position: relative; height: 280px; width: 100%;">
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Table & Activities Row -->
+<div class="row g-4 mt-2">
+    <!-- Recent Predictions Table -->
+    <div class="col-xl-8">
+        <div class="panel h-100">
+            <div class="panel-title">
+                <h4>Recent Detections</h4>
+                <a href="/admin/predictions" class="btn btn-sm btn-outline-primary py-1 px-3">View All Logs</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Analyzed Message</th>
+                            <th>Prediction</th>
+                            <th>Confidence</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in recent_predictions %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-sm me-2 bg-light text-secondary rounded-circle d-flex align-items-center justify-content-center" style="width:32px;height:32px;font-size:0.85rem; flex-shrink:0;">
+                                        <i class="bi bi-person"></i>
+                                    </div>
+                                    <span class="fw-semibold text-dark">{{ r.username or 'Anonymous' }}</span>
+                                </div>
+                            </td>
+                            <td class="text-secondary" style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                {{ r.message_text }}
+                            </td>
+                            <td>
+                                <span class="label-pill {{ 'safe' if r.prediction == 'normal' else 'harmful' }}">
+                                    {{ label_info.get(r.prediction, {}).get('name', r.prediction) }}
+                                </span>
+                            </td>
+                            <td class="fw-bold text-dark">{{ r.confidence_score }}%</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center py-4 text-muted">No predictions have been logged yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent User Registrations -->
+    <div class="col-xl-4">
+        <div class="panel h-100">
+            <div class="panel-title">
+                <h4>New Registered Users</h4>
+            </div>
+            <div class="activity-timeline">
+                {% for u in recent_users %}
+                <div class="activity-item d-flex align-items-start mb-3 pb-3 border-bottom-dashed">
+                    <div class="activity-badge bg-primary-soft text-primary me-3 rounded-circle d-flex align-items-center justify-content-center" style="width:40px;height:40px;flex-shrink:0;">
+                        <i class="bi bi-person-plus-fill" style="font-size: 1.1rem;"></i>
+                    </div>
+                    <div class="activity-details">
+                        <strong class="text-dark d-block" style="font-size: 0.95rem;">{{ u.fullname or u.username }}</strong>
+                        <span class="text-muted d-block" style="font-size: 0.85rem;">Username: @{{ u.username }}</span>
+                        <small class="text-muted-soft d-block mt-1" style="font-size: 0.75rem;">
+                            <i class="bi bi-clock me-1"></i>{{ u.created_at }}
+                        </small>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-muted text-center py-4">No recent users found.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Graph Gradients and Config
+const ctxDaily = document.getElementById('dailyChart').getContext('2d');
+const gradientDaily = ctxDaily.createLinearGradient(0, 0, 0, 300);
+gradientDaily.addColorStop(0, 'rgba(37, 99, 235, 0.4)');
+gradientDaily.addColorStop(1, 'rgba(37, 99, 235, 0.0)');
+
+new Chart(ctxDaily, {
+    type: 'line',
+    data: {
+        labels: {{ daily_labels|tojson }},
+        datasets: [{
+            label: 'Total Scans',
+            data: {{ daily_values|tojson }},
+            fill: true,
+            backgroundColor: gradientDaily,
+            borderColor: '#2563eb',
+            borderWidth: 2.5,
+            pointBackgroundColor: '#2563eb',
+            pointHoverRadius: 7,
+            tension: 0.35
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            x: {
+                grid: { display: false }
+            },
+            y: {
+                beginAtZero: true,
+                ticks: { precision: 0 }
+            }
+        }
+    }
+});
+
+const cats = {{ category_stats|tojson }};
+const catLabels = Object.keys(cats).map(x => x.replaceAll('_', ' '));
+const catValues = Object.values(cats);
+
+// Dynamic colors depending on safety
+const colorsMap = {
+    'normal': '#16a34a',
+    'cyberbullying': '#dc2626',
+    'hate speech': '#ea580c',
+    'toxic language': '#eab308',
+    'harassment': '#8b5cf6',
+    'offensive words': '#f43f5e',
+    'threats': '#7f1d1d'
+};
+const backgroundColors = catLabels.map(label => colorsMap[label.toLowerCase()] || '#64748b');
+
+new Chart(document.getElementById('categoryChart'), {
+    type: 'doughnut',
+    data: {
+        labels: catLabels,
+        datasets: [{
+            data: catValues,
+            backgroundColor: backgroundColors,
+            borderWidth: 2,
+            hoverOffset: 4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    usePointStyle: true,
+                    padding: 10,
+                    font: { size: 10 }
+                }
+            }
+        },
+        cutout: '65%'
+    }
+});
+</script>
+{% endblock %}
