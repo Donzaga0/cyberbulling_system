@@ -28,30 +28,39 @@ LABEL_INFO = {
 }
 
 
-def db_connection():
-    # Read database configuration from environment variables (useful for hosting on Render)
+def db_connection(max_retries=3):
     import urllib.parse
+    import time
     
-    # If a database URL is provided (e.g. mysql://user:pass@host:port/db)
     db_url = os.environ.get('DATABASE_URL')
-    if db_url:
-        url = urllib.parse.urlparse(db_url)
-        return mysql.connector.connect(
-            host=url.hostname,
-            port=url.port or 3306,
-            user=url.username,
-            password=url.password,
-            database=url.path.lstrip('/')
-        )
     
-    # Fallback to individual environment variables or localhost defaults
-    return mysql.connector.connect(
-        host=os.environ.get('DB_HOST', 'localhost'),
-        user=os.environ.get('DB_USER', 'root'),
-        password=os.environ.get('DB_PASSWORD', ''),
-        database=os.environ.get('DB_NAME', 'bullying_detection_db'),
-        port=int(os.environ.get('DB_PORT', 3306))
-    )
+    for attempt in range(max_retries):
+        try:
+            if db_url:
+                url = urllib.parse.urlparse(db_url)
+                return mysql.connector.connect(
+                    host=url.hostname,
+                    port=url.port or int(os.environ.get('DB_PORT', 3306)),
+                    user=url.username,
+                    password=url.password,
+                    database=url.path.lstrip('/'),
+                    connect_timeout=10
+                )
+            
+            # Fallback to individual environment variables or localhost defaults
+            return mysql.connector.connect(
+                host=os.environ.get('DB_HOST', 'localhost'),
+                user=os.environ.get('DB_USER', 'root'),
+                password=os.environ.get('DB_PASSWORD', ''),
+                database=os.environ.get('DB_NAME', 'bullying_detection_db'),
+                port=int(os.environ.get('DB_PORT', 3306)),
+                connect_timeout=10
+            )
+        except Exception as e:
+            if attempt < max_retries - 1:
+                time.sleep(1.5)
+                continue
+            raise e
 
 
 def init_database():
