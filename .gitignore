@@ -5,3 +5,8 @@ __pycache__/
 *.pyd
 .pytest_cache/
 .DS_Store
+
+venv/
+.venv/
+static/uploads/*
+!static/uploads/.gitkeep

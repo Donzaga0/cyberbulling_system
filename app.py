@@ -93,6 +93,42 @@ def init_database():
             except Error as e:
                 if e.errno != 1060: pass
         
+        # Create project_settings table if not exists
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS project_settings (
+                id INT PRIMARY KEY,
+                student_name VARCHAR(150) NOT NULL,
+                matric_no VARCHAR(80) NOT NULL,
+                dept VARCHAR(150) NOT NULL,
+                faculty VARCHAR(150) NULL,
+                supervisor VARCHAR(150) NULL,
+                degree VARCHAR(150) NULL,
+                project_title TEXT NOT NULL,
+                project_subtitle TEXT NULL,
+                photo_path VARCHAR(255) NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
+        """)
+
+        # Seed initial project settings if not exists
+        cur.execute("SELECT id FROM project_settings WHERE id = 1")
+        if not cur.fetchone():
+            cur.execute("""
+                INSERT INTO project_settings 
+                (id, student_name, matric_no, dept, faculty, supervisor, degree, project_title, project_subtitle, photo_path)
+                VALUES (1, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                os.environ.get('STUDENT_NAME', 'Emmanuel Adebayo'),
+                os.environ.get('STUDENT_MATRIC_NO', 'FCP/CSC/20/1042'),
+                os.environ.get('STUDENT_DEPT', 'Department of Computer Science'),
+                os.environ.get('STUDENT_FACULTY', 'Faculty of Pure and Applied Sciences'),
+                os.environ.get('STUDENT_SUPERVISOR', 'Dr. / Prof. Project Supervisor'),
+                'B.Sc. (Hons) Computer Science',
+                'Cyberbullying & Harmful Content Detection System',
+                'An Intelligent Natural Language Processing (NLP) and Machine Learning System designed to detect, analyze, and mitigate cyberbullying, harassment, hate speech, and digital threats across online communication platforms.',
+                'student.jpg'
+            ))
+
         # Seed default admin user if not exists, or update it to ensure correct credentials
         cur.execute("SELECT id FROM users WHERE username = 'admin'")
         admin_user = cur.fetchone()
@@ -160,13 +196,54 @@ def verify_password(stored, supplied):
     return stored == supplied
 
 
+def get_project_settings():
+    default_settings = {
+        'name': os.environ.get('STUDENT_NAME', 'Emmanuel Adebayo'),
+        'matric_no': os.environ.get('STUDENT_MATRIC_NO', 'FCP/CSC/20/1042'),
+        'dept': os.environ.get('STUDENT_DEPT', 'Department of Computer Science'),
+        'faculty': os.environ.get('STUDENT_FACULTY', 'Faculty of Pure and Applied Sciences'),
+        'supervisor': os.environ.get('STUDENT_SUPERVISOR', 'Dr. / Prof. Project Supervisor'),
+        'degree': 'B.Sc. (Hons) Computer Science',
+        'project_title': 'Cyberbullying & Harmful Content Detection System',
+        'project_subtitle': 'An Intelligent Natural Language Processing (NLP) and Machine Learning System designed to detect, analyze, and mitigate cyberbullying, harassment, hate speech, and digital threats across online communication platforms.',
+        'photo': 'student.jpg'
+    }
+    try:
+        conn = db_connection()
+        cur = conn.cursor(dictionary=True)
+        cur.execute("SELECT * FROM project_settings WHERE id = 1")
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        if row:
+            return {
+                'name': row.get('student_name') or default_settings['name'],
+                'matric_no': row.get('matric_no') or default_settings['matric_no'],
+                'dept': row.get('dept') or default_settings['dept'],
+                'faculty': row.get('faculty') or default_settings['faculty'],
+                'supervisor': row.get('supervisor') or default_settings['supervisor'],
+                'degree': row.get('degree') or default_settings['degree'],
+                'project_title': row.get('project_title') or default_settings['project_title'],
+                'project_subtitle': row.get('project_subtitle') or default_settings['project_subtitle'],
+                'photo': row.get('photo_path') or default_settings['photo']
+            }
+    except Exception as e:
+        print('Note: Could not query project_settings:', e)
+    return default_settings
+
+
 @app.context_processor
 def inject_globals():
-    return {'label_info': LABEL_INFO, 'current_year': datetime.now().year}
+    return {'label_info': LABEL_INFO, 'current_year': datetime.now().year, 'student': get_project_settings()}
 
 
 @app.route('/')
-def home(): return render_template('index.html')
+def landing():
+    return render_template('landing.html', student=get_project_settings())
+
+@app.route('/home')
+def home():
+    return render_template('index.html')
 
 @app.route('/login', methods=['GET','POST'])
 def login():
@@ -315,6 +392,76 @@ def admin_predictions():
 @admin_required
 def delete_record(record_id):
     conn=db_connection(); cur=conn.cursor(); cur.execute('DELETE FROM messages WHERE id=%s',(record_id,)); conn.commit(); cur.close(); conn.close(); flash('Prediction deleted.','success'); return redirect(request.referrer or url_for('admin_predictions'))
+
+@app.route('/admin/settings', methods=['GET', 'POST'])
+@admin_required
+def admin_settings():
+    if request.method == 'POST':
+        student_name = request.form.get('student_name', '').strip()
+        matric_no = request.form.get('matric_no', '').strip()
+        dept = request.form.get('dept', '').strip()
+        faculty = request.form.get('faculty', '').strip()
+        supervisor = request.form.get('supervisor', '').strip()
+        degree = request.form.get('degree', '').strip()
+        project_title = request.form.get('project_title', '').strip()
+        project_subtitle = request.form.get('project_subtitle', '').strip()
+
+        # Handle profile photo upload
+        photo_file = request.files.get('student_photo')
+        photo_filename = None
+        if photo_file and photo_file.filename != '':
+            ext = os.path.splitext(photo_file.filename)[1].lower()
+            if ext in ['.jpg', '.jpeg', '.png', '.webp', '.svg']:
+                filename = f"student_{int(datetime.now().timestamp())}{ext}"
+                upload_dir = os.path.join(BASE_DIR, 'static', 'uploads')
+                os.makedirs(upload_dir, exist_ok=True)
+                photo_file.save(os.path.join(upload_dir, filename))
+                photo_filename = f"uploads/{filename}"
+            else:
+                flash('Unsupported image format. Allowed formats: JPG, PNG, WEBP, SVG.', 'warning')
+
+        try:
+            conn = db_connection()
+            cur = conn.cursor()
+            if photo_filename:
+                cur.execute("""
+                    UPDATE project_settings SET
+                        student_name = %s,
+                        matric_no = %s,
+                        dept = %s,
+                        faculty = %s,
+                        supervisor = %s,
+                        degree = %s,
+                        project_title = %s,
+                        project_subtitle = %s,
+                        photo_path = %s
+                    WHERE id = 1
+                """, (student_name, matric_no, dept, faculty, supervisor, degree, project_title, project_subtitle, photo_filename))
+            else:
+                cur.execute("""
+                    UPDATE project_settings SET
+                        student_name = %s,
+                        matric_no = %s,
+                        dept = %s,
+                        faculty = %s,
+                        supervisor = %s,
+                        degree = %s,
+                        project_title = %s,
+                        project_subtitle = %s
+                    WHERE id = 1
+                """, (student_name, matric_no, dept, faculty, supervisor, degree, project_title, project_subtitle))
+            conn.commit()
+            cur.close()
+            conn.close()
+            flash('Landing page profile updated successfully!', 'success')
+        except Exception as e:
+            flash(f'Error updating profile: {str(e)}', 'danger')
+
+        return redirect(url_for('admin_settings'))
+
+    settings = get_project_settings()
+    return render_template('admin_settings.html', settings=settings)
+
 
 @app.route('/logout')
 def logout(): session.clear(); flash('You have been logged out.','info'); return redirect(url_for('login'))

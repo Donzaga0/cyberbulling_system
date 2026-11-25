@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+{% block title %}Project Presentation | {{ student.project_title }}{% endblock %}
+
+{% block content %}
+<div class="landing-wrapper">
+  <!-- Hero / Introduction Section -->
+  <section class="landing-hero py-5">
+    <div class="container py-4">
+      <div class="row align-items-center g-5">
+        
+        <!-- Left: Project Info & Launch Controls -->
+        <div class="col-lg-7 order-2 order-lg-1">
+          <div class="academic-badge mb-3">
+            <span class="badge-dot"></span>
+            <span>FINAL YEAR ACADEMIC PROJECT PRESENTATION</span>
+          </div>
+          
+          <h1 class="project-title mb-3">
+            {{ student.project_title }}
+          </h1>
+          
+          <p class="project-subtitle text-muted-soft mb-4">
+            {{ student.project_subtitle }}
+          </p>
+
+          <!-- Action Buttons / Links into the System -->
+          <div class="d-flex flex-wrap gap-3 align-items-center mb-4">
+            {% if session.user_id %}
+              <a href="{{ '/admin' if session.role == 'admin' else '/dashboard' }}" class="btn btn-primary btn-lg px-4 shadow-sm">
+                <i class="bi bi-speedometer2 me-2"></i> Enter Dashboard
+              </a>
+              <a href="/detect" class="btn btn-outline-light btn-lg px-4">
+                <i class="bi bi-search me-2"></i> Test Detection
+              </a>
+            {% else %}
+              <a href="/login" class="btn btn-primary btn-lg px-4 shadow-sm">
+                <i class="bi bi-box-arrow-in-right me-2"></i> Access System Portal
+              </a>
+              <a href="/register" class="btn btn-outline-primary btn-lg px-4">
+                <i class="bi bi-person-plus me-2"></i> Create Account
+              </a>
+            {% endif %}
+            <a href="/home" class="btn btn-link text-decoration-none text-light px-3">
+              <i class="bi bi-info-circle me-1"></i> System Overview &rarr;
+            </a>
+          </div>
+
+          <!-- Quick Metric Badges -->
+          <div class="project-tags d-flex flex-wrap gap-2 pt-2 border-top border-secondary-subtle">
+            <span class="tag-pill"><i class="bi bi-cpu text-info me-1"></i> NLP & Machine Learning</span>
+            <span class="tag-pill"><i class="bi bi-shield-check text-success me-1"></i> 7-Category Multi-Class</span>
+            <span class="tag-pill"><i class="bi bi-database text-warning me-1"></i> MySQL Database</span>
+            <span class="tag-pill"><i class="bi bi-lock text-primary me-1"></i> Role-Based Access</span>
+          </div>
+        </div>
+
+        <!-- Right: Student Profile Card -->
+        <div class="col-lg-5 order-1 order-lg-2">
+          <div class="student-card">
+            <div class="student-card-header text-center">
+              <span class="sub-heading-badge">RESEARCHER & DEVELOPER</span>
+              <div class="student-photo-wrapper mx-auto mt-3">
+                <img 
+                  src="{{ url_for('static', filename=student.photo) }}" 
+                  alt="{{ student.name }}" 
+                  class="student-photo"
+                  onerror="this.onerror=null; this.src='{{ url_for('static', filename='default_avatar.svg') }}';"
+                >
+                <div class="photo-glow"></div>
+              </div>
+              <h3 class="student-name mt-3 mb-1">{{ student.name }}</h3>
+              <p class="student-dept text-primary fw-semibold mb-0">{{ student.dept }}</p>
+            </div>
+
+            <div class="student-card-body p-4">
+              <div class="info-row">
+                <span class="info-label"><i class="bi bi-card-text me-2 text-primary"></i>Matric No:</span>
+                <span class="info-value matric-badge">{{ student.matric_no }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label"><i class="bi bi-buildings me-2 text-primary"></i>Faculty:</span>
+                <span class="info-value">{{ student.faculty }}</span>
+              </div>
+              {% if student.supervisor %}
+              <div class="info-row">
+                <span class="info-label"><i class="bi bi-person-badge me-2 text-primary"></i>Supervisor:</span>
+                <span class="info-value">{{ student.supervisor }}</span>
+              </div>
+              {% endif %}
+              <div class="info-row border-0 pb-0">
+                <span class="info-label"><i class="bi bi-mortarboard me-2 text-primary"></i>Degree:</span>
+                <span class="info-value">{{ student.degree }}</span>
+              </div>
+            </div>
+
+            <div class="student-card-footer text-center p-3 bg-light-subtle rounded-bottom-4 border-top">
+              <small class="text-muted d-block mb-2">Ready to explore the application?</small>
+              <div class="d-grid gap-2">
+                <a href="/home" class="btn btn-sm btn-outline-secondary">
+                  <i class="bi bi-arrow-right-circle me-1"></i> Continue to SafeText AI System
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- System Features Preview -->
+  <section class="section py-5 bg-white border-top">
+    <div class="container py-4">
+      <div class="text-center mb-5">
+        <span class="eyebrow dark">PROJECT HIGHLIGHTS</span>
+        <h2 class="fw-bold">Key Capabilities of this Research System</h2>
+        <p class="lead mx-auto text-muted">A look at the algorithmic, analytical, and user-management components implemented.</p>
+      </div>
+
+      <div class="row g-4">
+        <div class="col-md-4">
+          <div class="feature-card h-100">
+            <i class="bi bi-shield-shaded text-primary"></i>
+            <h4 class="mt-3">Multi-Class Toxicity Detection</h4>
+            <p class="text-muted">Classifies text across 7 categories: Cyberbullying, Hate Speech, Threats, Harassment, Toxic Language, Offensive Words, and Normal Messages.</p>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <div class="feature-card h-100">
+            <i class="bi bi-activity text-primary"></i>
+            <h4 class="mt-3">Real-Time Risk Scoring</h4>
+            <p class="text-muted">Uses TF-IDF feature union and tuned Logistic Regression to provide live probability confidence scores and actionable severity badges.</p>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <div class="feature-card h-100">
+            <i class="bi bi-sliders text-primary"></i>
+            <h4 class="mt-3">User & Admin Portals</h4>
+            <p class="text-muted">Secure role-based dashboard with user history tracking, administrator charts, system activity logging, and content moderation.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Navigation Bar -->
+      <div class="card mt-5 border-0 bg-primary-soft p-4 rounded-4 text-center">
+        <h4 class="fw-bold mb-2 text-dark">Navigate Directly into the Project</h4>
+        <p class="text-muted mb-4">Choose where you would like to begin your demonstration:</p>
+        <div class="d-flex flex-wrap justify-content-center gap-3">
+          <a href="/login" class="btn btn-primary px-4">
+            <i class="bi bi-lock me-1"></i> Login Portal
+          </a>
+          <a href="/register" class="btn btn-outline-primary px-4">
+            <i class="bi bi-pencil-square me-1"></i> Register New User
+          </a>
+          <a href="/home" class="btn btn-secondary px-4">
+            <i class="bi bi-display me-1"></i> System Overview Page
+          </a>
+          <a href="/about" class="btn btn-outline-secondary px-4">
+            <i class="bi bi-journal-text me-1"></i> About System & NLP
+          </a>
+          <a href="/contact" class="btn btn-outline-secondary px-4">
+            <i class="bi bi-envelope me-1"></i> Contact & Support
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </section>
+</div>
+{% endblock %}
